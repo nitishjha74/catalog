@@ -2,9 +2,11 @@ from django.urls import path
 from catalog.views import business
 
 urlpatterns = [
-    # List all categories or create a new one
+    # Category endpoints
     path('categories/', business.CategoryListCreateView.as_view(), name='category-list-create'),
-    # Retrieve, update, or delete a category by its 4-digit category_id
     path('categories/<int:category_id>/', business.CategoryDetailView.as_view(), name='category-detail'),
-
+    
+    # Product endpoints
+    path('products/', business.ProductListCreateView.as_view(), name='product-list-create'),
+    path('products/<int:product_id>/', business.ProductDetailView.as_view(), name='product-detail'),
 ]
