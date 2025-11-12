@@ -20,13 +20,17 @@ def generate_product_id():
 class Category(models.Model):
     category_id = models.PositiveIntegerField(unique=True, editable=False, blank=True, null=True)
     business_id = models.IntegerField(null=True, blank=True, help_text="Business ID from authentication server")
-    name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(max_length=120, unique=True)
-    image_url = models.TextField(blank=True, null=True)  # S3 image URL
+    name = models.CharField(max_length=100)  
+    slug = models.SlugField(max_length=120)  
+    image_url = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # ADD THIS - Enforce uniqueness per business
+        unique_together = [['business_id', 'name'], ['business_id', 'slug']]
 
     def save(self, *args, **kwargs):
         if not self.category_id:
@@ -34,7 +38,7 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} (Business: {self.business_id})"
 
 class Product(models.Model):
     product_id = models.PositiveIntegerField(unique=True, editable=False, blank=True, null=True)
