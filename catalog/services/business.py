@@ -49,12 +49,33 @@ class ProductService:
     def create(data, business_id):
         """Create a product with business_id."""
         data["business_id"] = business_id
+        
+        # Handle category assignment - get the Category object
+        category_id = data.get('category')
+        if category_id and isinstance(category_id, int):
+            # Get the Category instance
+            try:
+                category = models.Category.objects.get(category_id=category_id, business_id=business_id)
+                data['category'] = category
+            except models.Category.DoesNotExist:
+                raise ValueError(f"Category with ID {category_id} does not exist for this business")
+        
         return models.Product.objects.create(**data)
 
     @staticmethod
     def update(product_id, business_id, data):
         """Update product details."""
         product = get_object_or_404(models.Product, product_id=product_id, business_id=business_id)
+        
+        # Handle category assignment if category is being updated
+        if 'category' in data and isinstance(data['category'], int):
+            category_id = data['category']
+            try:
+                category = models.Category.objects.get(category_id=category_id, business_id=business_id)
+                data['category'] = category
+            except models.Category.DoesNotExist:
+                raise ValueError(f"Category with ID {category_id} does not exist for this business")
+        
         for key, value in data.items():
             setattr(product, key, value)
         product.save()
@@ -66,3 +87,21 @@ class ProductService:
         product = get_object_or_404(models.Product, product_id=product_id, business_id=business_id)
         product.delete()
         return True
+
+    @staticmethod
+    def get_featured_products(business_id):
+        """Return all featured products for a specific business."""
+        return models.Product.objects.filter(
+            business_id=business_id, 
+            is_active=True, 
+            is_feature=True
+        ).order_by("-created_at")
+
+    @staticmethod
+    def get_products_by_category(category_id, business_id):
+        """Return all products for a specific category and business."""
+        return models.Product.objects.filter(
+            category_id=category_id,
+            business_id=business_id,
+            is_active=True
+        ).order_by("-created_at")

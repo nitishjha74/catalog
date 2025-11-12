@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status
 from catalog.serializers import business as business_serializers
 from catalog.services.business import CategoryService, ProductService
 from drf_yasg.utils import swagger_auto_schema
@@ -8,7 +8,12 @@ from drf_yasg import openapi
 from rest_framework.permissions import IsAuthenticated
 from catalog.authentication.business import SSOBusinessTokenAuthentication
 
+
+
 # ---------- Category List + Create ----------
+
+
+
 class CategoryListCreateView(APIView):
     authentication_classes = [SSOBusinessTokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -50,7 +55,12 @@ class CategoryListCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
 # ---------- Category Detail (GET, PUT, DELETE) ----------
+
+
+
 class CategoryDetailView(APIView):
     authentication_classes = [SSOBusinessTokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -109,6 +119,59 @@ class CategoryDetailView(APIView):
         return Response({"message": "Category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 
+
+# ---------- Products by Category ----------
+
+
+
+class ProductsByCategoryView(APIView):
+    authentication_classes = [SSOBusinessTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get products by category",
+        operation_description="Retrieve all products belonging to a specific category for the authenticated merchant.",
+        manual_parameters=[
+            openapi.Parameter(
+                "category_id", 
+                openapi.IN_PATH, 
+                description="4-digit Category ID", 
+                type=openapi.TYPE_INTEGER
+            )
+        ],
+        responses={
+            200: business_serializers.ProductSerializer(many=True),
+            404: "Category not found"
+        },
+    )
+    def get(self, request, category_id):
+        business_id = request.user.business_id
+        
+        # First verify the category exists and belongs to the business
+        try:
+            category = CategoryService.get_by_id(category_id, business_id)
+        except:
+            return Response(
+                {"error": f"Category with ID {category_id} not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get products for this category
+        products = ProductService.get_products_by_category(category_id, business_id)
+        serializer = business_serializers.ProductSerializer(products, many=True)
+        
+        # Include category info in response
+        response_data = {
+            "category_id": category_id,
+            "category_name": category.name,
+            "products_count": len(serializer.data),
+            "products": serializer.data
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+
 # ---------- Product List + Create ----------
 
 
@@ -142,7 +205,8 @@ class ProductListCreateView(APIView):
                 "name": "Smartphone",
                 "description": "Latest smartphone with advanced features",
                 "price": "19999.00",
-                "image_url": "https://s3.amazonaws.com/jsjcard/smartphone.jpg"
+                "image_url": "https://s3.amazonaws.com/jsjcard/smartphone.jpg",
+                "is_feature": True
             }
         },
     )
@@ -155,7 +219,33 @@ class ProductListCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+# ---------- Featured Products List ----------
+
+
+
+class FeaturedProductsListView(APIView):
+    authentication_classes = [SSOBusinessTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="List featured products",
+        operation_description="Retrieve all featured products (is_feature=True) created by the authenticated merchant.",
+        responses={200: business_serializers.ProductSerializer(many=True)},
+    )
+    def get(self, request):
+        business_id = request.user.business_id
+        featured_products = ProductService.get_featured_products(business_id)
+        serializer = business_serializers.ProductSerializer(featured_products, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
 # ---------- Product Detail (GET, PUT, PATCH, DELETE) ----------
+
+
+
 class ProductDetailView(APIView):
     authentication_classes = [SSOBusinessTokenAuthentication]
     permission_classes = [IsAuthenticated]
