@@ -212,12 +212,27 @@ class ProductListCreateView(APIView):
     )
     def post(self, request):
         business_id = request.user.business_id
-        serializer = business_serializers.ProductSerializer(data=request.data)
+        # Pass the request context to the serializer for business_id access
+        serializer = business_serializers.ProductSerializer(
+            data=request.data, 
+            context={'request': request}
+        )
         if serializer.is_valid():
-            product = ProductService.create(serializer.validated_data, business_id)
-            return Response(business_serializers.ProductSerializer(product).data, status=status.HTTP_201_CREATED)
+            try:
+                # The serializer now handles category conversion and business_id assignment
+                # Just call save() which will call serializer.create()
+                product = serializer.save()
+                return Response(
+                    business_serializers.ProductSerializer(product).data, 
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                # Handle any unexpected errors
+                return Response(
+                    {"error": str(e)}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 # ---------- Featured Products List ----------

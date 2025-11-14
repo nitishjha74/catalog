@@ -66,14 +66,35 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["business_id", "product_id", "created_at", "updated_at"]
 
+    def validate_category(self, value):
+        """
+        Validate that the category exists and belongs to the current business.
+        """
+        request = self.context.get('request')
+        if request and hasattr(request.user, 'business_id'):
+            business_id = request.user.business_id
+            try:
+                category = models.Category.objects.get(category_id=value, business_id=business_id)
+                return category  # Return the Category OBJECT, not just the ID
+            except models.Category.DoesNotExist:
+                raise serializers.ValidationError(
+                    f"Category with ID {value} does not exist for your business."
+                )
+        raise serializers.ValidationError("Unable to validate category without business context.")
+
     def create(self, validated_data):
-        category_id = validated_data.pop('category')
+        # The category field now contains the Category object due to validate_category
+        # No need to pop and lookup again
         business_id = self.context['request'].user.business_id
+        validated_data['business_id'] = business_id
         
-        try:
-            category = models.Category.objects.get(category_id=category_id, business_id=business_id)
-        except models.Category.DoesNotExist:
-            raise serializers.ValidationError({"category": f"Category with ID {category_id} does not exist."})
-        
-        validated_data['category'] = category
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """
+        Handle update - category is already validated and converted to object.
+        """
+        business_id = self.context['request'].user.business_id
+        # business_id is handled automatically, no need to set it
+        
+        return super().update(instance, validated_data)

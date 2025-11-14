@@ -47,19 +47,13 @@ class ProductService:
 
     @staticmethod
     def create(data, business_id):
-        """Create a product with business_id."""
+        """
+        Create a product with business_id.
+        Category validation is handled in serializer, so data['category'] should be a Category object.
+        """
+        # The category should already be a Category object due to serializer validation
+        # Just set the business_id and create
         data["business_id"] = business_id
-        
-        # Handle category assignment - get the Category object
-        category_id = data.get('category')
-        if category_id and isinstance(category_id, int):
-            # Get the Category instance
-            try:
-                category = models.Category.objects.get(category_id=category_id, business_id=business_id)
-                data['category'] = category
-            except models.Category.DoesNotExist:
-                raise ValueError(f"Category with ID {category_id} does not exist for this business")
-        
         return models.Product.objects.create(**data)
 
     @staticmethod
@@ -67,14 +61,8 @@ class ProductService:
         """Update product details."""
         product = get_object_or_404(models.Product, product_id=product_id, business_id=business_id)
         
-        # Handle category assignment if category is being updated
-        if 'category' in data and isinstance(data['category'], int):
-            category_id = data['category']
-            try:
-                category = models.Category.objects.get(category_id=category_id, business_id=business_id)
-                data['category'] = category
-            except models.Category.DoesNotExist:
-                raise ValueError(f"Category with ID {category_id} does not exist for this business")
+        # The category should already be validated and converted by the serializer
+        # No need for additional category validation here
         
         for key, value in data.items():
             setattr(product, key, value)
